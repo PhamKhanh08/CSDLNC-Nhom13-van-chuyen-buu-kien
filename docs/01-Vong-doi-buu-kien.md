@@ -1,0 +1,1 @@
+# Mô tả các trạng thái như tiếp nhận, trung chuyển, đang giao, giao thành công, hoàn trả; lập bảng chuyển trạng thái hợp lệ.

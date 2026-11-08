@@ -1,32 +1,17 @@
-# CSDLNC Nhom 13 Van chuyen buu kien
+# CSDLNC-Nhom13-van-chuyen-buu-kien
 
-Môi trường PostgreSQL cho đề tài theo dõi vận chuyển và bàn giao bưu kiện.
+Đề tài 13: Hệ thống theo dõi vận chuyển và bàn giao bưu kiện (PostgreSQL).
 
-## Chạy bằng PostgreSQL cài sẵn trên Windows
+## Cấu trúc thư mục
 
-1. Sao chép `.env.example` thành `.env`.
-2. Điền đúng mật khẩu của tài khoản PostgreSQL vào `POSTGRES_PASSWORD`.
-3. Mở PowerShell tại thư mục dự án và chạy:
+- `sql/01_init_schemas.sql`: Khởi tạo 2 schema `pa_a` (History-based) và `pa_b` (Current State) cùng các bảng, ràng buộc và chỉ mục.
+- `sql/02_triggers_functions.sql`: Trigger và Function tự động đồng bộ trạng thái hiện tại cho `pa_b`.
+- `sql/SqlAdvance.sql`: 5 câu truy vấn SQL nâng cao (Window Functions, CTE, Recursive CTE, ROLLUP).
+- `sql/benchmark.explain.sql`: Kịch bản đo hiệu năng đối sánh `pa_a` và `pa_b` (`EXPLAIN ANALYZE`).
+- `sql/transaction_concurrency.sql`: Kịch bản thực nghiệm giao dịch (Transaction, Savepoint) và xử lý đồng thời.
+- `scripts/generate_data.py`: Script Python sinh dữ liệu mẫu (10.000 bưu kiện & 100.000 sự kiện).
+- `requirements.txt`: Thư viện Python cần thiết (`psycopg2-binary`).
 
-```powershell
-.\scripts\setup-database.ps1
-.\scripts\test-connection.ps1
-```
+## Hướng dẫn cài đặt và chạy
 
-Lệnh đầu tạo cơ sở dữ liệu `parcel_tracking` (nếu chưa có) và chạy các file SQL
-trong `sql` theo thứ tự. Lệnh thứ hai chỉ kiểm tra kết nối và hiển thị phiên bản PostgreSQL.
-
-## Chạy bằng Docker (tùy chọn)
-
-Nếu đã cài Docker Desktop, sao chép `.env.example` thành `.env`, điền mật khẩu mới
-an toàn, rồi chạy:
-
-```powershell
-docker compose up -d
-docker compose ps
-```
-
-Docker chỉ chạy các script trong `sql` ở lần tạo volume đầu tiên. Để áp dụng thay đổi
-sau đó, chạy `setup-database.ps1` hoặc một file migration bằng `psql`.
-
-Xem hướng dẫn chi tiết và cách khắc phục lỗi tại `docs/setup-postgresql.md`.
+Xem chi tiết từng bước tại: [docs/huong-dan-cai-dat-va-chay.md](docs/huong-dan-cai-dat-va-chay.md).
