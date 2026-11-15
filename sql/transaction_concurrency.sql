@@ -1,4 +1,3 @@
-
 -- ====================================================================
 -- TRUONG DAI HOC SAI GON - KHOA CONG NGHE THONG TIN
 -- MON HOC: CO SO DU LIEU NANG CAO - DE TAI 13
@@ -8,13 +7,13 @@
 
 
 -- ====================================================================
--- PHAN 1: BENCHMARK HIEU NANG TRUY VAN (MUC 6.2 - PA_A VS PA_B)
+-- PHAN 1: BENCHMARK HIEU NANG TRUY VAN (MUC 6.2 - 6.4: PA_A VS PA_B)
 -- Bo den tung doan lenh va nhan Ctrl + Enter / F5 de xem EXPLAIN
 -- ====================================================================
 
 
 -- --------------------------------------------------------------------
--- 6.2.1. KICH BAN 1: Tra cuu trang thai hien tai cua 1 buu kien
+-- 6.2. THUC NGHIEM 1: Truy van trang thai hien tai cua 1 buu kien
 -- Ma buu kien: PK00000001
 -- --------------------------------------------------------------------
 
@@ -52,7 +51,7 @@ WHERE ma_buu_kien = 'PK00000001';
 
 
 -- --------------------------------------------------------------------
--- 6.2.2. KICH BAN 2: Lay trang thai cua toan bo 10.000 buu kien
+-- 6.3. THUC NGHIEM 2: Truy van trang thai hien tai cua toan bo 10.000 buu kien
 -- --------------------------------------------------------------------
 
 -- Phuong an A (History-based)
@@ -66,7 +65,8 @@ SELECT DISTINCT ON (ma_buu_kien)
 FROM pa_a.sukientrangthai
 ORDER BY
     ma_buu_kien,
-    thoi_gian_xay_ra DESC;
+    thoi_gian_xay_ra DESC,
+    ma_su_kien DESC;
 
 
 -- Phuong an B (Current State)
@@ -82,11 +82,15 @@ FROM pa_b.buukien;
 
 
 -- --------------------------------------------------------------------
--- 6.2.3. KICH BAN 3: Do chi phi ghi (INSERT + Trigger dong bo)
+-- 6.4. THUC NGHIEM 3: Ghi nhan mot su kien cap nhat trang thai (INSERT)
+-- Su dung BEGIN ... ROLLBACK de do chinh xac EXPLAIN (ANALYZE, BUFFERS)
+-- nhung khong de lai du lieu thu nghiem lam sai lech tap 100.000 su kien
 -- --------------------------------------------------------------------
 
 -- Phuong an A (History-based)
 -- Ghi thuan tuy vao bang lich su su kien
+
+BEGIN;
 
 EXPLAIN (ANALYZE, BUFFERS)
 INSERT INTO pa_a.sukientrangthai (
@@ -100,20 +104,24 @@ INSERT INTO pa_a.sukientrangthai (
     idempotency_key
 )
 VALUES (
-    'SK_BM_PAA_' || gen_random_uuid(),
+    'SK_BENCHMARK_PA_A',
     'PK00000001',
     'DANG_GIAO',
-    'DGN01',
+    'DGN00001',
     'CAP_NHAT_TRANG_THAI',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    'KEY-BM-PAA-' || gen_random_uuid()
+    'KEY-BM-PAA-01'
 );
+
+ROLLBACK;
 
 
 -- Phuong an B (Current State)
--- Ghi su kien va kich hoat Trigger PL/pgSQL
+-- Ghi su kien va kich hoat Trigger PL/pgSQL trg_cap_nhat_trang_thai
 -- Dong bo trang thai sang bang buukien
+
+BEGIN;
 
 EXPLAIN (ANALYZE, BUFFERS)
 INSERT INTO pa_b.sukientrangthai (
@@ -127,26 +135,27 @@ INSERT INTO pa_b.sukientrangthai (
     idempotency_key
 )
 VALUES (
-    'SK_BM_PAB_' || gen_random_uuid(),
+    'SK_BENCHMARK_PA_B',
     'PK00000001',
     'DANG_GIAO',
-    'DGN01',
+    'DGN00001',
     'CAP_NHAT_TRANG_THAI',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    'KEY-BM-PAB-' || gen_random_uuid()
+    'KEY-BM-PAB-01'
 );
+
+ROLLBACK;
 
 
 
 -- ====================================================================
--- PHAN 2: KIEM THU GIAO DICH VA DIEU KHIEN DONG THOI (MUC 6.3)
+-- PHAN 2: KIEM THU GIAO DICH VA DONG THOI (MUC 6.6)
 -- ====================================================================
 
 
 -- --------------------------------------------------------------------
--- 6.3.1. KIEM THU TINH NGUYEN TU (ATOMICITY) - KICH BAN ROLLBACK
--- Bo den chay toan bo khoi lenh ben duoi trong 1 Query Editor
+-- 6.6.1. KIEM THU ROLLBACK KHI VI PHAM KHOA NGOAI (TINH NGUYEN TU - ATOMICITY)
 -- --------------------------------------------------------------------
 
 -- RESET TRANSACTION NEU PHIEN LAM VIEC TRUOC BI LOI
@@ -154,13 +163,11 @@ ROLLBACK;
 
 
 -- BAT DAU GIAO DICH
-
 BEGIN;
 
 
 -- BUOC 1: LENH HOP LE
 -- Them bien ban ban giao voi cac ma khoa ngoai co san
-
 INSERT INTO pa_b.lanbangiao (
     ma_ban_giao,
     ma_buu_kien,
@@ -175,18 +182,22 @@ VALUES (
     'LBG_TEST_ROLLBACK_01',
     (SELECT ma_buu_kien
      FROM pa_b.buukien
+     WHERE ma_buu_kien = 'PK00000001'
      LIMIT 1),
 
     (SELECT ma_nhan_vien
      FROM pa_b.nhanvien
+     WHERE ma_nhan_vien = 'NV01'
      LIMIT 1),
 
     (SELECT ma_diem_giao_nhan
      FROM pa_b.diemgiaonhan
+     WHERE ma_diem_giao_nhan = 'DGN00001'
      LIMIT 1),
 
     (SELECT ma_chuyen
      FROM pa_b.chuyenvanchuyen
+     WHERE ma_chuyen = 'CH01'
      LIMIT 1),
 
     CURRENT_TIMESTAMP,
@@ -195,9 +206,12 @@ VALUES (
 );
 
 
--- BUOC 2: LENH CO Y TAO LOI
--- Chen ma buu kien KHONG TON TAI de kich hoat loi FK 23503
+-- KIEM TRA TRONG GIAO DICH CHUA COMMIT (Hinh 6.1)
+SELECT * FROM pa_b.lanbangiao WHERE ma_ban_giao = 'LBG_TEST_ROLLBACK_01';
 
+
+-- BUOC 2: LENH CO Y TAO LOI (Hinh 6.2)
+-- Chen ma buu kien KHONG TON TAI ('PK_KHONG_TON_TAI') de kich hoat loi FK 23503
 INSERT INTO pa_b.sukientrangthai (
     ma_su_kien,
     ma_buu_kien,
@@ -210,13 +224,9 @@ INSERT INTO pa_b.sukientrangthai (
 )
 VALUES (
     'SK_TEST_ROLLBACK_01',
-    'PK_KHONG_TON_TAI_9999',
+    'PK_KHONG_TON_TAI',
     'DANG_GIAO',
-
-    (SELECT ma_diem_giao_nhan
-     FROM pa_b.diemgiaonhan
-     LIMIT 1),
-
+    (SELECT ma_diem_giao_nhan FROM pa_b.diemgiaonhan LIMIT 1),
     'CAP_NHAT_TRANG_THAI',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
@@ -224,92 +234,89 @@ VALUES (
 );
 
 
--- BUOC 3: COMMIT SE BI TU CHOI
--- Do BUOC 2 vi pham rang buoc khoa ngoai
--- PostgreSQL chuyen transaction sang trang thai Aborted
-
-COMMIT;
-
-
--- BUOC 4: ROLLBACK DE KET THUC GIAO DICH LOI
+-- BUOC 3: ROLLBACK DE KET THUC GIAO DICH LOI (Hinh 6.3)
 -- Huy toan bo thay doi chua duoc COMMIT
-
 ROLLBACK;
 
 
--- BUOC 5: KIEM TRA KET QUA
+-- BUOC 4: TRUY VAN XAC MINH SAU ROLLBACK (Hinh 6.4)
 -- Ket qua mong doi: 0 dong
-
-SELECT *
-FROM pa_b.lanbangiao
-WHERE ma_ban_giao = 'LBG_TEST_ROLLBACK_01';
+SELECT * FROM pa_b.lanbangiao WHERE ma_ban_giao = 'LBG_TEST_ROLLBACK_01';
 
 
 
 -- --------------------------------------------------------------------
--- 6.3.2. KIEM THU KHOA DONG DONG THOI (CONCURRENCY LOCKING)
--- Yeu cau mo 2 Tab Query Editor doc lap:
+-- 6.6.2 & 6.6.3. KIEM THU DONG THOI VA TRANG THAI CUOI (CONCURRENCY LOCKING)
+-- Yeu cau mo 3 Tab Query Editor doc lap:
 -- TAB 1: SESSION 1
 -- TAB 2: SESSION 2
+-- TAB 3: SESSION 3 (Giam sat khoa tren pg_stat_activity)
 -- --------------------------------------------------------------------
 
+-- BUOC 0: Dat trang thai ban dau NHAP_KHO cho PK00000001
+UPDATE pa_b.buukien
+SET trang_thai_hien_tai = 'NHAP_KHO'
+WHERE ma_buu_kien = 'PK00000001';
+
 
 -- ====================================================================
--- [TAB 1 - SESSION 1]
--- Mo giao dich va dat khoa doc quyen tren dong buu kien
+-- [TAB 1 - SESSION 1] (Buoc 1 - Hinh 6.5)
+-- Mo giao dich va khoa dong buu kien bang SELECT ... FOR UPDATE
 -- ====================================================================
-
 BEGIN;
+SELECT ma_buu_kien, trang_thai_hien_tai FROM pa_b.buukien
+WHERE ma_buu_kien = 'PK00000001' FOR UPDATE;
+-- Tam dung tai day, chuyen sang TAB 2 chay Session 2 va TAB 3 quan sat khoa
 
 
--- BUOC 1: DOC VA KHOA DONG BANG SELECT FOR UPDATE
-
-SELECT
-    ma_buu_kien,
-    trang_thai_hien_tai
-FROM pa_b.buukien
+-- ====================================================================
+-- [TAB 2 - SESSION 2] (Chay khi Session 1 dang giu khoa - Hinh 6.6 & Hinh 6.9)
+-- ====================================================================
+BEGIN;
+UPDATE pa_b.buukien
+SET trang_thai_hien_tai = 'DANG_GIAO'
 WHERE ma_buu_kien = 'PK00000001'
-FOR UPDATE;
+  AND trang_thai_hien_tai = 'NHAP_KHO';   -- ket qua sau khi Session 1 COMMIT: UPDATE 0
+COMMIT;
 
 
--- TAM DUNG TAI DAY
--- Chuyen sang TAB 2 va chay lenh cua SESSION 2
--- De quan sat hien tuong Waiting for Lock
+-- ====================================================================
+-- [TAB 3 - SESSION 3] (Chay trong luc Session 2 dang cho khoa - Hinh 6.7)
+-- ====================================================================
+SELECT pid, state, wait_event_type, wait_event, left(query, 70) AS query
+FROM pg_stat_activity
+WHERE datname = 'CSDLNC_DeTai13' AND pid <> pg_backend_pid();
 
 
--- BUOC 2: CAP NHAT TRANG THAI
--- Thuc hien sau khi SESSION 2 dang cho khoa
-
+-- ====================================================================
+-- [TAB 1 - SESSION 1] (Buoc 2: Cap nhat sang XUAT_KHO va COMMIT - Hinh 6.8)
+-- ====================================================================
 UPDATE pa_b.buukien
-SET trang_thai_hien_tai = 'DANG_VAN_CHUYEN'
+SET trang_thai_hien_tai = 'XUAT_KHO'
 WHERE ma_buu_kien = 'PK00000001';
-
-
--- BUOC 3: COMMIT VA GIAI PHONG KHOA
 
 COMMIT;
 
 
-
 -- ====================================================================
--- [TAB 2 - SESSION 2]
--- Co gang cap nhat dong dang bi SESSION 1 khoa
+-- 6.6.3. KIEM TRA TRANG THAI CUOI (Hinh 6.10)
 -- ====================================================================
-
-BEGIN;
-
-
--- BUOC 1: THUC HIEN UPDATE
--- Lenh se cho SESSION 1 giai phong khoa
-
-UPDATE pa_b.buukien
-SET trang_thai_hien_tai = 'DA_GIAO_HANG'
+SELECT ma_buu_kien, trang_thai_hien_tai, thoi_gian_cap_nhat_cuoi
+FROM pa_b.buukien
 WHERE ma_buu_kien = 'PK00000001';
 
-
--- BUOC 2: COMMIT SAU KHI SESSION 1 DA COMMIT
-
-COMMIT;
+-- Khoi phuc trang thai dong bo cua PK00000001 theo lich su su kien sau khi hoan tat kiem thu
+UPDATE pa_b.buukien b
+SET trang_thai_hien_tai = sub.ma_trang_thai,
+    thoi_gian_cap_nhat_cuoi = sub.thoi_gian_xay_ra
+FROM (
+    SELECT ma_trang_thai, thoi_gian_xay_ra
+    FROM pa_b.sukientrangthai
+    WHERE ma_buu_kien = 'PK00000001'
+    ORDER BY thoi_gian_xay_ra DESC, ma_su_kien DESC
+    LIMIT 1
+) sub
+WHERE b.ma_buu_kien = 'PK00000001';
 
 
 -- ====================================================================

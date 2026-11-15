@@ -7,18 +7,34 @@ CREATE OR REPLACE FUNCTION pa_b.fn_cap_nhat_trang_thai_buu_kien()
 RETURNS TRIGGER AS $$
 DECLARE
     v_thoi_gian_moi_nhat TIMESTAMP;
+    v_trang_thai_moi_nhat VARCHAR(30);
 BEGIN
     -- 1. Tìm mốc thời gian xảy ra sự kiện mới nhất hiện có của bưu kiện
     SELECT thoi_gian_cap_nhat_cuoi INTO v_thoi_gian_moi_nhat
     FROM pa_b.BuuKien
     WHERE ma_buu_kien = NEW.ma_buu_kien;
 
-    -- 2. Xử lý sự kiện đến muộn (Late-arriving Event):
-    -- Chỉ cập nhật trạng thái nếu sự kiện mới có thoi_gian_xay_ra >= thoi_gian_cap_nhat_cuoi
-    IF v_thoi_gian_moi_nhat IS NULL OR NEW.thoi_gian_xay_ra >= v_thoi_gian_moi_nhat THEN
+    -- 2. Xử lý sự kiện đến muộn (Late-arriving Event - BR-06):
+    -- Trường hợp 2a: Sự kiện mới có thời gian xảy ra lớn hơn hẳn mốc hiện tại
+    IF v_thoi_gian_moi_nhat IS NULL OR NEW.thoi_gian_xay_ra > v_thoi_gian_moi_nhat THEN
         UPDATE pa_b.BuuKien
         SET 
             trang_thai_hien_tai = NEW.ma_trang_thai,
+            thoi_gian_cap_nhat_cuoi = NEW.thoi_gian_xay_ra
+        WHERE ma_buu_kien = NEW.ma_buu_kien;
+
+    -- Trường hợp 2b: Hai sự kiện có cùng thoi_gian_xay_ra -> phân định bằng tiêu chí phụ ma_su_kien DESC
+    ELSIF NEW.thoi_gian_xay_ra = v_thoi_gian_moi_nhat THEN
+        SELECT sk.ma_trang_thai INTO v_trang_thai_moi_nhat
+        FROM pa_b.SuKienTrangThai sk
+        WHERE sk.ma_buu_kien = NEW.ma_buu_kien
+          AND sk.thoi_gian_xay_ra = v_thoi_gian_moi_nhat
+        ORDER BY sk.thoi_gian_xay_ra DESC, sk.ma_su_kien DESC
+        LIMIT 1;
+
+        UPDATE pa_b.BuuKien
+        SET 
+            trang_thai_hien_tai = COALESCE(v_trang_thai_moi_nhat, NEW.ma_trang_thai),
             thoi_gian_cap_nhat_cuoi = NEW.thoi_gian_xay_ra
         WHERE ma_buu_kien = NEW.ma_buu_kien;
     END IF;

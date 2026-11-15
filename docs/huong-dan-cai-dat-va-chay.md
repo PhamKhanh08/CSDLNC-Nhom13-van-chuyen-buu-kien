@@ -63,15 +63,15 @@ Nếu database đã tồn tại, PostgreSQL sẽ báo lỗi `database ... alread
 
 ## 5. Cấu hình và chạy chương trình sinh dữ liệu
 
-Mở file `scripts\generate_data.py` và thay giá trị `your_password` trong `DB_CONFIG` bằng mật khẩu PostgreSQL của bạn:
+Mở file `scripts\generate_data.py` và kiểm tra cấu hình `DB_CONFIG` (mặc định mật khẩu đang để là `"123"`, bạn có thể sửa trực tiếp hoặc đặt biến môi trường `POSTGRES_PASSWORD` cho khớp với mật khẩu PostgreSQL của bạn):
 
 ```python
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "database": "CSDLNC_DeTai13",
-    "user": "postgres",
-    "password": "MAT_KHAU_POSTGRES_CUA_BAN"
+    "host": os.getenv("POSTGRES_HOST", "localhost"),
+    "port": int(os.getenv("POSTGRES_PORT", "5432")),
+    "database": os.getenv("POSTGRES_DB", "CSDLNC_DeTai13"),
+    "user": os.getenv("POSTGRES_USER", "postgres"),
+    "password": os.getenv("POSTGRES_PASSWORD", "123")
 }
 ```
 
@@ -112,14 +112,14 @@ Kết quả mong đợi sau khi sinh dữ liệu: `so_buu_kien` là 10000 và `s
 
 Sau khi đã sinh dữ liệu ở bước 5, có thể chạy tiếp các kịch bản thực nghiệm trong thư mục `sql\`:
 
-- `sql\SqlAdvance.sql`: 5 câu truy vấn SQL nâng cao (Window Functions, CTE, `WITH RECURSIVE`, `ROLLUP`).
+- `sql\05_sql_advanced.sql`: Bộ 12 câu truy vấn & thủ tục SQL nâng cao (Window Functions, CTE, `WITH RECURSIVE`, `ROLLUP`, Truy vấn con tương quan, Phép chia quan hệ, Stored Procedure, SQL động chống SQL Injection, Cursor).
 - `sql\benchmark.explain.sql`: Kịch bản đo hiệu năng đối sánh `pa_a` và `pa_b` bằng `EXPLAIN (ANALYZE, BUFFERS)`.
 - `sql\transaction_concurrency.sql`: Kịch bản benchmark đầy đủ kèm kiểm thử giao dịch (Transaction, Savepoint, xử lý đồng thời / khóa bi quan `FOR UPDATE`).
 
 Chạy bằng terminal:
 
 ```cmd
-"C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -p 5432 -U postgres -d CSDLNC_DeTai13 -f sql\SqlAdvance.sql
+"C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -p 5432 -U postgres -d CSDLNC_DeTai13 -f sql\05_sql_advanced.sql
 
 "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -p 5432 -U postgres -d CSDLNC_DeTai13 -f sql\benchmark.explain.sql
 ```
