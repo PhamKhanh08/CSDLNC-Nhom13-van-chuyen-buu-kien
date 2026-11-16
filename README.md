@@ -5,46 +5,48 @@
 </p>
 
 # Đồ án môn học: Cơ Sở Dữ Liệu Nâng Cao (Advanced Databases)
-**Chủ đề: Đề tài 13 - Thiết kế Cơ Sở Dữ Liệu theo dõi vận chuyển và bàn giao bưu kiện**
+**Chủ đề: Đề tài 13 – Thiết kế Cơ sở dữ liệu theo dõi vận chuyển và bàn giao bưu kiện**
 
-**Nhóm thực hiện:**
-- Lê Thị Khánh Linh - 3124410187
-- Nguyễn Thị Loan - 3124410191
-- Phạm Hữu Phú Khánh - 3124410152
-- Đoàn Quang Khải - 3124410138
+**Nhóm thực hiện (Nhóm 13):**
+- Đoàn Quang Khải – `3124410138`
+- Lê Thị Khánh Linh – `3124410187`
+- Nguyễn Thị Loan – `3124410191`
+- Phạm Hữu Phú Khánh – `3124410152`
 
-## 1. Giới thiệu đề tài (Mục tiêu và Phạm vi)
+---
+
+## 1. Giới thiệu Đề tài (Mục tiêu và Phạm vi)
 - **Mục tiêu:** Quản lý hành trình bưu kiện qua các điểm trung chuyển, lưu lịch sử bàn giao và xác định trạng thái hiện tại nhất quán.
-- **Câu hỏi nghiên cứu:** Nên tính trạng thái hiện tại từ lịch sử hay lưu riêng? Làm thế nào xử lý sự kiện gửi trùng, đến muộn và cập nhật đồng thời?
-- **Phạm vi dữ liệu:** Bưu kiện, người gửi/nhận, bưu cục, điểm trung chuyển, tuyến, chuyến vận chuyển, nhân viên, lần bàn giao và sự kiện trạng thái.
+- **Câu hỏi nghiên cứu:** Nên tính trạng thái hiện tại từ lịch sử (`pa_a` – History-based) hay lưu riêng (`pa_b` – Current-state)? Làm thế nào xử lý sự kiện gửi trùng (`BR-07`), đến muộn (`BR-06`) và cập nhật đồng thời?
+- **Phạm vi dữ liệu:** Bưu kiện, khách hàng gửi/nhận, điểm giao nhận (bưu cục, kho trung chuyển), tuyến, chuyến vận chuyển, chi tiết chuyến, nhân viên (shipper, nhân viên kho), phụ trách, lần bàn giao và sự kiện trạng thái.
+
+---
 
 ## 2. Sơ đồ Kiến trúc và Dòng chảy Hoạt động (Workflow)
-Dự án kết hợp **Docker**, **PostgreSQL** và **Python** với luồng hoạt động được chia làm 3 giai đoạn rõ rệt:
 
-- Hạ tầng & Cấu trúc: Docker khởi tạo CSDL tự động; các script SQL thiết lập lược đồ đối sánh (schema pa_a và pa_b) cùng hệ thống Trigger/Function xử lý logic nghiệp vụ.
-
-- Dữ liệu mẫu (Seeding): Script Python đảm nhiệm việc sinh tự động khối lượng lớn dữ liệu thử nghiệm (hàng chục ngàn sự kiện) mô phỏng thực tế.
-
-- Đánh giá & Phân tích: Các kịch bản chuyên sâu được thiết lập độc lập để thực hiện truy vấn phức tạp (SQL Advance), phân tích hiệu năng (EXPLAIN ANALYZE) và thực nghiệm xử lý đụng độ giao dịch (Transaction Concurrency).
+Dự án kết hợp **Docker**, **PostgreSQL 18** và **Python** với luồng hoạt động 3 giai đoạn:
+1. **Hạ tầng & Cấu trúc (Giai đoạn 1):** Khởi tạo CSDL, thiết lập 2 schema đối sánh (`pa_a` và `pa_b`) cùng Trigger/Function xử lý logic nghiệp vụ.
+2. **Dữ liệu mẫu – Seeding (Giai đoạn 2):** Script Python sinh tự động **10.000 bưu kiện** và **100.000 sự kiện trạng thái** đồng bộ trên cả 2 schema.
+3. **Đánh giá & Phân tích (Giai đoạn 3):** Thực thi bộ 12 câu truy vấn & thủ tục SQL nâng cao, đo hiệu năng bằng `EXPLAIN (ANALYZE, BUFFERS)` và kiểm thử giao dịch đồng thời (`SELECT ... FOR UPDATE`, `ROLLBACK`).
 
 ```mermaid
 graph TD
-    subgraph GD1 ["Giai đoạn 1: Dựng hạ tầng và CSDL tự động (Docker & SQL)"]
-        ENV[".env<br/>(user, password, database, port)"] --> DC["docker-compose.yml<br/>(mount ./sql vào initdb.d)"]
-        DC -->|1. Khởi tạo container postgres:18| PG[("PostgreSQL: parcel<br/>volume pgdata<br/>schema: pa_a, pa_b")]
-        S1["01_init_schemas.sql<br/>• Khởi tạo schema pa_a, pa_b<br/>• Các bảng, ràng buộc, chỉ mục"] -->|2. Tự chạy lược đồ đầu tiên| PG
-        S2["02_triggers_functions.sql<br/>• Trigger & Function<br/>• Tự động đồng bộ trạng thái (pa_b)"] -->|3. Tự chạy nạp logic| PG
+    subgraph GD1 ["Giai đoạn 1: Dựng hạ tầng và CSDL (Docker / PostgreSQL 18)"]
+        ENV[".env<br/>(user, password, database, port)"] --> DC["docker-compose.yml"]
+        DC -->|1. Khởi tạo container postgres:18| PG[("PostgreSQL: CSDLNC_DeTai13<br/>schema: pa_a, pa_b")]
+        S1["sql/01_init_schemas.sql<br/>• Khởi tạo schema pa_a, pa_b<br/>• 13 bảng, ràng buộc PK, FK, UNIQUE"] -->|2. Tạo lược đồ| PG
+        S2["sql/02_triggers_functions.sql<br/>• Trigger & Function PL/pgSQL<br/>• Tự động đồng bộ trạng thái (pa_b)"] -->|3. Nạp logic Trigger| PG
     end
 
     subgraph GD2 ["Giai đoạn 2: Sinh dữ liệu mẫu (Python)"]
-        REQ["requirements.txt<br/>(psycopg2-binary)"] -.-> PY["scripts/generate_data.py<br/>• Dữ liệu ngẫu nhiên thực tế<br/>• 10.000 bưu kiện, 100.000 sự kiện"]
-        PY -->|4. Nạp lượng lớn dữ liệu| PG
+        REQ["requirements.txt<br/>(psycopg2-binary)"] -.-> PY["scripts/generate_data.py<br/>• 10.000 bưu kiện<br/>• 100.000 sự kiện hành trình"]
+        PY -->|4. Nạp đồng bộ pa_a & pa_b| PG
     end
 
     subgraph GD3 ["Giai đoạn 3: Phân tích, Truy vấn & Thực nghiệm (SQL)"]
-        Q_ADV["SqlAdvance.sql<br/>• Truy vấn nâng cao<br/>(Window Func, CTE, Recursive, ROLLUP)"] -->|Truy vấn dữ liệu| PG
-        Q_BENCH["benchmark.explain.sql<br/>• Đo hiệu năng bằng EXPLAIN ANALYZE<br/>• So sánh chiến lược thực thi pa_a vs pa_b"] -->|Đo lường & Phân tích| PG
-        TST_CONC["transaction_concurrency.sql<br/>• Thực nghiệm Transaction & Savepoint<br/>• Xử lý đụng độ, đồng thời"] -->|Kiểm thử đồng thời| PG
+        Q_ADV["sql/05_sql_advanced.sql<br/>• 12 kịch bản SQL nâng cao<br/>(Window, CTE, Recursive, Division,<br/>Procedure, Dynamic SQL, Cursor)"] -->|Truy vấn & Kiểm toán| PG
+        Q_BENCH["sql/benchmark.explain.sql<br/>• Đo hiệu năng EXPLAIN (ANALYZE, BUFFERS)<br/>• Đối sánh pa_a vs pa_b"] -->|Đo lường| PG
+        TST_CONC["sql/transaction_concurrency.sql<br/>• Thực nghiệm Transaction & ROLLBACK<br/>• Khóa bi quan FOR UPDATE"] -->|Kiểm thử đồng thời| PG
     end
 
     classDef db fill:#316192,stroke:#fff,stroke-width:2px,color:#fff;
@@ -59,35 +61,50 @@ graph TD
     class ENV,DC,REQ cfg;
     class PY py;
 ```
-## 3. Sơ đồ thực thể EER
-![](EER.svg)
 
+---
 
-## 4. Cấu trúc Mã nguồn Dự án
+## 3. Sơ đồ Thực thể – Kết hợp Mở rộng (EER)
 
-Dự án đã được tái cấu trúc để phân tách rõ ràng giữa hạ tầng CSDL, script sinh dữ liệu và các truy vấn phục vụ môn học:
+![Sơ đồ EER](reports/EER.svg)
 
-- `sql/01_init_schemas.sql`: Khởi tạo 2 schema `pa_a` (History-based) và `pa_b` (Current State) cùng các bảng, ràng buộc và chỉ mục.
-- `sql/02_triggers_functions.sql`: Trigger và Function tự động đồng bộ trạng thái hiện tại cho `pa_b`.
-- `sql/SqlAdvance.sql`: 5 câu truy vấn SQL nâng cao (Window Functions, CTE, Recursive CTE, ROLLUP).
-- `sql/benchmark.explain.sql`: Kịch bản đo hiệu năng đối sánh `pa_a` và `pa_b` (`EXPLAIN ANALYZE`).
-- `sql/transaction_concurrency.sql`: Kịch bản thực nghiệm giao dịch (Transaction, Savepoint) và xử lý đồng thời.
-- `scripts/generate_data.py`: Script Python sinh dữ liệu mẫu (10.000 bưu kiện & 100.000 sự kiện).
-- `requirements.txt`: Thư viện Python cần thiết (`psycopg2-binary`).
+---
 
-## 5. Hai phương án kiến trúc CSDL
+## 4. Cấu trúc Thư mục và Tài liệu Dự án
 
-| Tiêu chí | `pa_a` (History-based) | `pa_b` (Current State) |
-|---|------------------------|------------------------|
-| **Nơi lưu trạng thái hiện tại** | Không lưu; **tính khi đọc** từ sự kiện mới nhất | Cột `trang_thai_hien_tai` trên bảng bưu kiện |
-| **Hàm `ghi_su_kien()`** | Chỉ `INSERT` sự kiện | `INSERT` sự kiện, rồi `UPDATE` trạng thái nếu sự kiện này mới hơn |
-| **Gửi trùng** | `idempotency_key` có `UNIQUE`, `ON CONFLICT DO NOTHING` | Giống `pa_a`, và không đụng tới trạng thái |
-| **Đến muộn** | Tự đúng vì trạng thái là sự kiện có `(thoi_gian_xay_ra, ma_su_kien)` lớn nhất | `UPDATE` có điều kiện "mới hơn sự kiện đang áp dụng" |
+### 4.1. Mã nguồn SQL & Script (`sql/`, `scripts/`)
+- [`sql/01_init_schemas.sql`](sql/01_init_schemas.sql): Khởi tạo 2 schema `pa_a` (History-based / BCNF) và `pa_b` (Current-state) cùng toàn bộ các bảng và ràng buộc.
+- [`sql/02_triggers_functions.sql`](sql/02_triggers_functions.sql): Trigger `trg_cap_nhat_trang_thai` và Function PL/pgSQL xử lý sự kiện đến muộn & tự động đồng bộ trạng thái cho `pa_b`.
+- [`sql/05_sql_advanced.sql`](sql/05_sql_advanced.sql): Bộ 12 câu truy vấn & thủ tục SQL nâng cao (Window Functions, CTE, `WITH RECURSIVE`, `ROLLUP`, Correlated Subquery, Relational Division, Stored Procedure, Dynamic SQL chống SQL Injection, Cursor).
+- [`sql/benchmark.explain.sql`](sql/benchmark.explain.sql): Kịch bản đo hiệu năng đối sánh `pa_a` và `pa_b` bằng `EXPLAIN (ANALYZE, BUFFERS)`.
+- [`sql/transaction_concurrency.sql`](sql/transaction_concurrency.sql): Kịch bản thực nghiệm giao dịch (`ROLLBACK` khi lỗi FK) và xử lý đồng thời (`SELECT ... FOR UPDATE` chống Lost Update).
+- [`scripts/generate_data.py`](scripts/generate_data.py): Script Python sinh dữ liệu mẫu (10.000 bưu kiện & 100.000 sự kiện).
 
-## 6. Hướng dẫn cài đặt và chạy
+### 4.2. Bộ Tài liệu Chuyên sâu & Báo cáo (`docs/`, `reports/`)
+- [`docs/01-Vong-doi-buu-kien.md`](docs/01-Vong-doi-buu-kien.md): Quy trình vận chuyển 5 giai đoạn, 7 quy tắc nghiệp vụ (`BR-01` $\rightarrow$ `BR-07`) và Ma trận chuyển đổi trạng thái hợp lệ (State Transition Matrix).
+- [`docs/02-eer-chuan-hoa.md`](docs/02-eer-chuan-hoa.md): Thiết kế EER, Từ điển dữ liệu, chiến lược ánh xạ kế thừa và Phân tích chuẩn hóa BCNF / 4NF (17 phụ thuộc hàm, bao đóng $X^+$, phủ tối tiểu $F_c$, Lossless Join).
+- [`docs/03-thiet-ke-lich-su.md`](docs/03-thiet-ke-lich-su.md): Thiết kế lịch sử dữ liệu (*Event Time* vs *Ingest Time*), kiến trúc `pa_a` vs `pa_b`, chỉ mục B-Tree và phân vùng bảng vật lý (Range Partitioning).
+- [`docs/04-quy-tac-su-kien-den-muon.md`](docs/04-quy-tac-su-kien-den-muon.md): Quy tắc xử lý sự kiện đến muộn (`BR-06`), chống gửi trùng (`BR-07` – Idempotency Key) và giao dịch bàn giao nguyên tử.
+- [`docs/05-so-sanh-hai-phuong-an.md`](docs/05-so-sanh-hai-phuong-an.md): Kết quả thực nghiệm đối sánh hiệu năng `pa_a` vs `pa_b` (`EXPLAIN ANALYZE`) và kiểm thử giao dịch đồng thời.
+- [`docs/06-mo-hinh-doi-tuong-oql.md`](docs/06-mo-hinh-doi-tuong-oql.md): Thiết kế CSDL hướng đối tượng (UML Class Diagram, đặc tả ODL ODMG 3.0) và 5 câu truy vấn OQL ánh xạ sang SQL.
+- [`reports/Báo cáo CSDL Nâng cao - Nhóm 13 - Đề tài 13 (Hoàn chỉnh).docx`](reports/Báo%20cáo%20CSDL%20Nâng%20cao%20-%20Nhóm%2013%20-%20Đề%20tài%2013%20(Hoàn%20chỉnh).docx): Bản báo cáo toàn văn hoàn chỉnh của nhóm.
 
-Để giữ cho tài liệu gọn gàng, toàn bộ hướng dẫn khởi tạo môi trường (Docker), sinh dữ liệu (Python) và chạy kịch bản đã được chuyển sang các tài liệu chuyên biệt.
+---
 
-Vui lòng xem chi tiết từng bước tại:
-👉 **[Hướng dẫn cài đặt và chạy dự án](docs/huong-dan-cai-dat-va-chay.md)**
-👉 **[Hướng dẫn thiết lập PostgreSQL](docs/setup-postgresql.md)**
+## 5. Tóm tắt Đối sánh Hai Phương án Kiến trúc (`PA_A` vs `PA_B`)
+
+| Tiêu chí | Phương án A (`pa_a` – History-based) | Phương án B (`pa_b` – Current-state) |
+| :--- | :--- | :--- |
+| **Lưu trữ trạng thái hiện tại** | Không lưu trên `BuuKien`; **tính động khi đọc** từ sự kiện mới nhất | Lưu trực tiếp trên `BuuKien` (`trang_thai_hien_tai`, `thoi_gian_cap_nhat_cuoi`) |
+| **Dạng chuẩn CSDL** | Đạt chuẩn **BCNF tuyệt đối** | Phi chuẩn hóa có kiểm soát, đồng bộ qua Trigger PL/pgSQL |
+| **Xử lý gửi trùng (`BR-07`)** | `idempotency_key UNIQUE` + `ON CONFLICT DO NOTHING` | Giống `pa_a`, bỏ qua bản ghi trùng và không kích hoạt lại Trigger |
+| **Xử lý đến muộn (`BR-06`)** | Tự động đúng khi sắp xếp theo `thoi_gian_xay_ra DESC` | Trigger chỉ `UPDATE` khi `NEW.thoi_gian_xay_ra >= thoi_gian_cap_nhat_cuoi` |
+| **Tốc độ đọc 1 bưu kiện** | `14,664 ms` | **`0,058 ms` (Nhanh hơn ~252,83 lần)** |
+| **Tốc độ đọc 10.000 bưu kiện** | `855,795 ms` | **`9,678 ms` (Nhanh hơn ~88,43 lần)** |
+| **Tốc độ ghi 1 sự kiện (`INSERT`)** | **`0,462 ms` (Nhanh hơn ~272,84 lần)** | `126,050 ms` |
+
+---
+
+## 6. Hướng dẫn Cài đặt và Chạy Thực nghiệm
+
+Xem hướng dẫn chi tiết từng bước tại: 👉 **[docs/huong-dan-cai-dat-va-chay.md](docs/huong-dan-cai-dat-va-chay.md)**

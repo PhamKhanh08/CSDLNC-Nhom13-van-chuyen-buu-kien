@@ -48,7 +48,8 @@ SELECT DISTINCT ON (ma_buu_kien)
 FROM pa_a.sukientrangthai
 ORDER BY
     ma_buu_kien,
-    thoi_gian_xay_ra DESC;
+    thoi_gian_xay_ra DESC,
+    ma_su_kien DESC;
 
 
 -- Phương án B (Current State)
@@ -62,9 +63,14 @@ FROM pa_b.buukien;
 
 -- --------------------------------------------------------------------
 -- KỊCH BẢN 3: Đo chi phí ghi (INSERT + Trigger đồng bộ)
+-- Sử dụng BEGIN ... ROLLBACK để thực thi thật lệnh INSERT + Trigger
+-- trong EXPLAIN (ANALYZE, BUFFERS) nhưng hoàn tác ngay sau khi đo,
+-- không làm bẩn dữ liệu 100.000 dòng và cho phép chạy lại nhiều lần.
 -- --------------------------------------------------------------------
 
 -- Phương án A (Ghi đơn thuần)
+BEGIN;
+
 EXPLAIN (ANALYZE, BUFFERS)
 INSERT INTO pa_a.sukientrangthai (
     ma_su_kien,
@@ -87,8 +93,12 @@ VALUES (
     'KEY-BM-PAA-01'
 );
 
+ROLLBACK;
+
 
 -- Phương án B (Ghi kèm kích hoạt Trigger PL/pgSQL)
+BEGIN;
+
 EXPLAIN (ANALYZE, BUFFERS)
 INSERT INTO pa_b.sukientrangthai (
     ma_su_kien,
@@ -110,3 +120,5 @@ VALUES (
     CURRENT_TIMESTAMP,
     'KEY-BM-PAB-01'
 );
+
+ROLLBACK;

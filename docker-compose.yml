@@ -4,16 +4,17 @@ services:
     container_name: parcel_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123}
+      POSTGRES_DB: ${POSTGRES_DB:-CSDLNC_DeTai13}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./sql:/docker-entrypoint-initdb.d:ro
+      - ./sql/01_init_schemas.sql:/docker-entrypoint-initdb.d/01_init_schemas.sql:ro
+      - ./sql/02_triggers_functions.sql:/docker-entrypoint-initdb.d/02_triggers_functions.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-CSDLNC_DeTai13}"]
       interval: 5s
       timeout: 3s
       retries: 10
